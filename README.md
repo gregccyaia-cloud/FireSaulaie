@@ -1,16 +1,2 @@
-# Passerelle Feu V1.1
-
-Prototype de calcul thermique parametrique pour la passerelle Gerland-La Saulaie.
-
-## Lancement
-
-```bash
-pip install -r requirements.txt
-python main.py
-```
-
-Un F5 dans VS Code lance `main.py`, affiche les resultats dans la console et regenere les CSV et PNG. Le rapport Word est optionnel via `GENERATE_REPORT`.
-
-## Limite majeure
-
-Le modele `vertical_column` est une enveloppe geometrique de depistage, pas un modele de flamme normatif. Les courbes ISO 834 et feu exterieur CEREMA donnent une temperature nominale des gaz. La distribution spatiale V1.1 applique un coefficient d'exposition explicite. Une evolution normative vers le feu localise de l'EN 1991-1-2, annexe C, necessitera au minimum le debit calorifique Q(t) et le diametre equivalent D du foyer.
+# V1.1 corrigee
+Lancer `pip install -r requirements.txt` puis `python main.py`. Le rapport est active par defaut et cree dans `results/reports/Rapport_V1_1.docx`.
