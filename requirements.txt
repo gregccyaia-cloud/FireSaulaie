@@ -1,3 +1,4 @@
-numpy
-matplotlib
-python-docx
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
+python-docx>=1.1

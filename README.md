@@ -1,12 +1,12 @@
-# V1.5_A autonome
+# SAU feu M7 - V1.5_B autonome
 
-Cette archive intègre les remarques de rédaction, le choix des courbes, le fondement du facteur Φ, la loi c_a(θ_a), le processus d'intégration détaillé et l'ouverture vers l'analyse structurelle.
+Point d'entrée unique : `main.py`. Aucun rapport source n'est nécessaire.
 
-## Exécution
-
-```bash
-python -m pip install -r requirements.txt
+```powershell
+pip install -r requirements.txt
 python main.py
 ```
 
-Les huit images du projet sont embarquées dans `assets/`. Le rapport et tous les graphiques sont générés dans `results/`.
+Sortie : `results/reports/Rapport_incendie_V1_5_B.docx`.
+
+Le sommaire est un champ Word. Si nécessaire, ouvrir le DOCX puis faire `Ctrl+A`, `F9`.
