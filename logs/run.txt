@@ -1,2 +1,2 @@
-Rapport genere: /mnt/data/Passerelle_Feu_V1_2/results/reports/Rapport_V1_2_Consolide.docx (617549 octets)
-Ecart convergence max: 0.601 degC
+[OK] Rapport généré : /mnt/data/SAUfeuM7_V1_3_consolidee/results/reports/Rapport_V1_3_Consolide.docx
+[OK] Worst case 30 min : ISO834_F1_H10 / intrados / 767.48 °C
