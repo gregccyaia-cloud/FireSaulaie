@@ -1,47 +1,36 @@
 from datetime import datetime,timezone
 import os,time
 from docx import Document
-from docx.shared import Cm,Pt,RGBColor
+from docx.shared import Cm,Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-
 def fig(d,p,c,w=15.5):d.add_picture(str(p),width=Cm(w));d.paragraphs[-1].alignment=WD_ALIGN_PARAGRAPH.CENTER;q=d.add_paragraph(c);q.style='Caption';q.alignment=WD_ALIGN_PARAGRAPH.CENTER
-def table(d,df,fs=8):
- h=list(df.columns);t=d.add_table(rows=1,cols=len(h));t.style='Table Grid'
- for i,x in enumerate(h):t.rows[0].cells[i].text=str(x)
+def table(d,df,fs=7.5):
+ t=d.add_table(rows=1,cols=len(df.columns));t.style='Table Grid'
+ for i,x in enumerate(df.columns):t.rows[0].cells[i].text=str(x)
  for _,r in df.iterrows():
   c=t.add_row().cells
   for i,x in enumerate(r):c[i].text=str(x)
  for row in t.rows:
   for c in row.cells:
    for p in c.paragraphs:
-    for x in p.runs:x.font.size=Pt(fs)
+    for r in p.runs:r.font.size=Pt(fs)
 def toc(p):
- r=p.add_run();b=OxmlElement('w:fldChar');b.set(qn('w:fldCharType'),'begin');i=OxmlElement('w:instrText');i.set(qn('xml:space'),'preserve');i.text=' TOC \\o "1-3" \\h \\z ';s=OxmlElement('w:fldChar');s.set(qn('w:fldCharType'),'separate');t=OxmlElement('w:t');t.text='Mettre à jour dans Word : Ctrl+A, F9.';e=OxmlElement('w:fldChar');e.set(qn('w:fldCharType'),'end')
- for x in (b,i,s,t,e):r._r.append(x)
-def build(ctx,out):
- d=Document();sec=d.sections[0];sec.top_margin=sec.bottom_margin=Cm(1.6);sec.left_margin=sec.right_margin=Cm(2);d.styles['Normal'].font.name='Arial';d.styles['Normal'].font.size=Pt(9.5)
- for n in ('Title','Heading 1','Heading 2'):d.styles[n].font.color.rgb=RGBColor(31,78,120)
- p=d.add_paragraph();p.alignment=WD_ALIGN_PARAGRAPH.CENTER;r=p.add_run('ANALYSE THERMIQUE D’UN INCENDIE SOUS LA PASSERELLE');r.bold=True;r.font.size=Pt(18);p=d.add_paragraph('Passerelle Gerland - La Saulaie');p.alignment=WD_ALIGN_PARAGRAPH.CENTER;p=d.add_paragraph('Rapport du '+datetime.now().strftime('%d/%m/%Y'));p.alignment=WD_ALIGN_PARAGRAPH.CENTER
- d.add_page_break();d.add_heading('Sommaire',1);toc(d.add_paragraph());d.add_page_break()
- d.add_heading('1. Objet et présentation du projet',1);d.add_paragraph('L’étude évalue l’évolution temporelle des températures des suspentes secondaires et des câbles principaux sous l’action d’un incendie sur la M7. Les calculs, l’évolution des propriétés thermiques et l’intégration pas à pas sont développés sous Python.')
- for p,c,w in ctx['assets_intro']:fig(d,p,c,w)
- d.add_heading('2. Références',1);d.add_paragraph('• NF EN 1991-1-2 : actions thermiques.\n• NF EN 1993-1-2 : comportement au feu de l’acier.\n• Cerema, Résistance à l’incendie des ponts routiers, 2018.\n• Note SAU_AVP_NTE_069_A_FeuM7.')
- d.add_heading('3. Choix de la courbe de feu',1);d.add_paragraph(ctx['choice']);fig(d,ctx['cerema'],'Figure 5 - Extrait du guide Cerema : choix des courbes.',15);d.add_paragraph(ctx['moa']);fig(d,ctx['fire'],'Figure 6 - Courbes nominales température-temps.')
- d.add_heading('4. Géométrie simplifiée et positions de feu',1);table(d,ctx['geometry'],8);fig(d,ctx['intrados'],'Figure 7 - Approximation de l’intrados par deux segments de droite et points géométriques de calage.',14);d.add_paragraph('F1 correspond à la zone ouest, F2 à l’axe de la M7 et F3 à la zone est.');fig(d,ctx['geom'],'Figure 8 - Trois coupes géométriques de référence et positions F1, F2 et F3.')
- d.add_heading('5. Choix des paramètres et hypothèses',1);table(d,ctx['params'],8);d.add_paragraph(ctx['cp'])
- d.add_heading('6. Méthode de calcul',1);d.add_paragraph('Pour chaque courbe, position et longueur de foyer, Python calcule la température des gaz, le facteur de forme, la chaleur spécifique dépendante de la température, les flux convectif et radiatif, puis l’incrément de température. L’intégration est répétée par pas de 5 s. L’annexe A illustre les étapes et le dernier pas avant 30 min.')
- d.add_heading('7. Résultats',1);fig(d,ctx['f10'],'Figure 9 - Échauffement - Suspente secondaire - foyer 20 m.');fig(d,ctx['f11'],'Figure 10 - Échauffement - Câble principal clos - foyer 20 m.');d.add_paragraph('Les valeurs ci-dessous correspondent aux enveloppes maximales de tous les cas calculés pour chaque famille d’éléments.');table(d,ctx['retained'],8)
- d.add_heading('8. Impact structurel',1);d.add_paragraph('Les vérifications structurelles devront être menées aux temps 15, 30, 60, 90 et 120 min, à partir des températures enveloppes du § 7 et des efforts axiaux quasi permanents. La première approche utilise les données complémentaires suivantes : câble principal E = 160 GPa et NQP = 3 300 kN ; suspente secondaire E = 205 GPa et NQP = 115 kN.')
- for x in ['déterminer les coefficients de réduction de la limite d’élasticité et du module d’Young à la température retenue ;','calculer la résistance axiale à chaud de la section ;','établir le ratio d’utilisation ηfi = Nfi,Ed / Nfi,Rd,θ et vérifier ηfi ≤ 1,00 ;','évaluer l’allongement thermique, la perte de rigidité et la variation de tension ;','examiner les redistributions d’efforts et les scénarios de perte locale d’une suspente.']:d.add_paragraph(x,style='List Bullet')
- d.add_paragraph('Le tableau ci-dessous constitue une première lecture de rigidité et de déformation élastique nominale. Il ne constitue pas encore une justification de résistance : la section métallique résistante réelle du câble principal et les résistances caractéristiques des aciers doivent être confirmées pour calculer Nfi,Rd,θ et le ratio ηfi.')
- table(d,ctx['structural'],6.8)
- d.add_paragraph(ctx['max_time_text'])
- d.add_heading('9. Portée et limites',1);d.add_paragraph('L’approche du présent rapport constitue une évaluation thermique enveloppe. Le choix d’un facteur de forme prudent et l’absence de crédit explicite pour les masquages placent le calcul du côté de la sécurité pour les configurations considérées. Un affinage géométrique pourra ultérieurement mieux différencier les positions et quantifier les effets favorables éventuels.')
- d.add_paragraph('Pour les suspentes, l’approche considère actuellement une exposition directe sans protection. Or, leur naissance est partiellement située derrière le bec du tablier, qui peut produire un effet de masque vis-à-vis d’une partie du rayonnement. Cette hypothèse est donc prudente et pourra être affinée. Elle ne permet toutefois pas d’écarter une exposition significative, puisqu’un foyer étendu peut également rayonner latéralement vers les suspentes.')
- d.add_paragraph('Le scénario ne couvre pas un feu de citerne, car le présent rapport n’étudie pas la courbe HC ; voir le § 3 « Choix de la courbe de feu ».')
- d.add_page_break();d.add_heading('Annexe A - Calcul détaillé du cas critique à 30 min',1);table(d,ctx['steps'],8);fig(d,ctx['integration'],'Figure A.1 - Intégration temporelle du cas critique.');table(d,ctx['worst'],8)
- d.add_page_break();d.add_heading('Annexe B - Courbes de tous les cas étudiés',1);d.add_paragraph('Les figures présentent les neuf cas F1/F2/F3 et L = 10/15/20 m, le domaine min.-max. et l’enveloppe maximale.')
- for p,c in ctx['annex']:fig(d,p,c,15)
+ r=p.add_run();b=OxmlElement('w:fldChar');b.set(qn('w:fldCharType'),'begin');i=OxmlElement('w:instrText');i.set(qn('xml:space'),'preserve');i.text=' TOC \\o "1-3" \\h \\z ';s=OxmlElement('w:fldChar');s.set(qn('w:fldCharType'),'separate');t=OxmlElement('w:t');t.text='Mettre à jour : Ctrl+A, F9.';e=OxmlElement('w:fldChar');e.set(qn('w:fldCharType'),'end');[r._r.append(x) for x in (b,i,s,t,e)]
+def build(c,out):
+ d=Document();d.styles['Normal'].font.name='Arial';d.styles['Normal'].font.size=Pt(9.5);p=d.add_paragraph();p.alignment=WD_ALIGN_PARAGRAPH.CENTER;p.add_run('ANALYSE THERMIQUE D’UN INCENDIE SOUS LA PASSERELLE').bold=True;p=d.add_paragraph('Passerelle Gerland - La Saulaie');p.alignment=WD_ALIGN_PARAGRAPH.CENTER;p=d.add_paragraph('Rapport du '+datetime.now().strftime('%d/%m/%Y'));p.alignment=WD_ALIGN_PARAGRAPH.CENTER;d.add_page_break();d.add_heading('Sommaire',1);toc(d.add_paragraph());d.add_page_break()
+ d.add_heading('1. Objet et présentation du projet',1);d.add_paragraph('L’étude évalue sous Python l’évolution temporelle des températures des suspentes secondaires et du câble principal lors d’un incendie sur la M7.')
+ for p,cap,w in c['assets']:fig(d,p,cap,w)
+ d.add_heading('2. Références',1);d.add_paragraph('NF EN 1991-1-2 ; NF EN 1993-1-2 ; guide Cerema Résistance à l’incendie des ponts routiers ; note SAU_AVP_NTE_069_A_FeuM7.')
+ d.add_heading('3. Choix de la courbe de feu',1);d.add_paragraph('Les courbes CN - ISO 834 et feu extérieur sont étudiées séparément puis comparées. Le MOA ou son AMO devra confirmer si la courbe HC doit également être étudiée.');fig(d,c['cerema'],'Figure 5 - Extrait du guide Cerema : choix des courbes.',15);fig(d,c['fire'],'Figure 6 - Courbes nominales température-temps.')
+ d.add_heading('4. Géométrie simplifiée et positions de feu',1);table(d,c['geomtab']);fig(d,c['intrados'],'Figure 7 - Approximation de l’intrados par deux segments de droite.',14)
+ d.add_heading('5. Choix des paramètres et hypothèses',1);table(d,c['params'])
+ d.add_heading('6. Méthode de calcul',1);d.add_paragraph('Pour chaque courbe, position et longueur de foyer, Python calcule la température des gaz, le facteur de forme, la chaleur spécifique, les flux et l’incrément de température par pas de 5 s.')
+ d.add_heading('7. Résultats',1);fig(d,c['f10'],'Figure 9 - Échauffement - Suspente secondaire - foyer 20 m.');fig(d,c['f11'],'Figure 10 - Échauffement - Câble principal clos - foyer 20 m.');table(d,c['temps'])
+ d.add_heading('8. Impact structurel',1);d.add_paragraph('La première vérification utilise les valeurs fournies : câble principal Ft,Rd = 11 897 kN et NQP = 3 300 kN ; suspente secondaire Ft,Rd = 541 kN et NQP = 115 kN. Pour chaque température, la résistance à chaud est estimée par Ft,Rd,θ = ky,θ × Ft,Rd et le ratio par ηfi = NQP / Ft,Rd,θ. Cette approche suppose que Ft,Rd fourni constitue la résistance de référence à 20 °C et que le coefficient ky,θ de la NF EN 1993-1-2 est applicable à l’acier de l’organe. Le module réduit est Eθ = kE,θ × E.')
+ table(d,c['struct'],6.8);d.add_paragraph(c['maxtext'])
+ d.add_heading('9. Portée et limites',1);d.add_paragraph('L’approche est enveloppe et ne crédite pas complètement les masquages. Pour les suspentes, le bec de tablier peut créer un masque partiel, mais un rayonnement latéral demeure possible. Le scénario ne couvre pas un feu de citerne, car la courbe HC n’est pas étudiée.')
+ d.add_page_break();d.add_heading('Annexe B - Courbes de tous les cas étudiés',1)
+ for p,cap in c['annex']:fig(d,p,cap,15)
  now=datetime.now(timezone.utc);d.core_properties.created=now;d.core_properties.modified=now;u=OxmlElement('w:updateFields');u.set(qn('w:val'),'true');d.settings._element.append(u);out.parent.mkdir(parents=True,exist_ok=True);d.save(out);os.utime(out,(time.time(),time.time()));return out
