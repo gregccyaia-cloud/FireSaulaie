@@ -1,36 +1,28 @@
-import numpy as np
+import numpy as np,pandas as pd
 from config import *
-from fire import CURVES
-from geometry import section_factor,nearest_section,receiver_xyz,distance3d
-from thermal import integrate
-from structural import ft_theta
-from plotting import fire_plot,grouped,envelope,geom,integration_pair
+from model import gas,solve,phi,ky,ke
+from plots import fireplot,geom,family,ratio_plot,envelope
 from report import build
-def run():
- RESULTS_DIR.mkdir(exist_ok=True);t=np.arange(0,T_MAX_MIN+DT_SECONDS/60,DT_SECONDS/60);gas={n:f(t) for n,f in CURVES.items()};C=[]
- for fn,tg in gas.items():
-  for p in FIRE_POSITIONS:
-   s=nearest_section(p,SECTIONS)
-   for L in FIRE_LENGTHS_M:
-    for e in (HANGER,MAIN_CABLE):C.append((fn,p,s,L,e,integrate(t,tg,section_factor(e.diameter_m)),distance3d((p.x_m,0,TRUCK_HEIGHT_M),receiver_xyz(s,e.name))))
- i=np.argmin(abs(t-30));fn,p,s,L,e,h,dist=max(C,key=lambda c:c[5].ta[i]);hs=next(c[5] for c in C if c[0]==fn and c[1]==p and c[3]==L and c[4] is HANGER);hp=next(c[5] for c in C if c[0]==fn and c[1]==p and c[3]==L and c[4] is MAIN_CABLE)
- ff=fire_plot(t,gas,RESULTS_DIR/'01_feux.png');gf=geom(SECTIONS,RESULTS_DIR/'02_geom.png');integ=integration_pair(hs,hp,RESULTS_DIR/'A_integration.png')
- figs=[];rfigs=[]
- for el,no in ((HANGER,12),(MAIN_CABLE,13)):
-  z=[(c[0],c[1].code,c[5].ta) for c in C if c[4] is el and c[3]==15.];figs.append((f'Figure {no} - Température - {el.name}',grouped(t,z,f'Température - {el.name}','Température acier (°C)',RESULTS_DIR/f'T{no}.png')))
-  z=[(c[0],c[1].code,ft_theta(el.ft_rd_20_kn,c[5].ta)) for c in C if c[4] is el and c[3]==15.];rfigs.append((f'Figure {no+2} - Résistance indicative - {el.name}',grouped(t,z,f'Résistance - {el.name}','Fₜ,Rd,θ (kN)',RESULTS_DIR/f'R{no}.png')))
- summary=[];rs=[]
- for fire in CURVES:
-  for pp in FIRE_POSITIONS:
-   for el in (HANGER,MAIN_CABLE):
-    c=next(c for c in C if c[0]==fire and c[1]==pp and c[3]==15. and c[4] is el);a={'Feu':fire,'Position':pp.code,'Élément':el.name};b={'Feu':fire,'Position':pp.code,'Élément':el.name,'Fₜ,Rd,20':f'{el.ft_rd_20_kn:.0f}'}
-    for tm in READ_TIMES_MIN:j=np.argmin(abs(t-tm));a[f'T {int(tm)} min']=f'{c[5].ta[j]:.1f}';b[f'Fₜ,Rd,θ {int(tm)} min']=f'{float(ft_theta(el.ft_rd_20_kn,c[5].ta[j])):.0f}'
-    summary.append(a);rs.append(b)
- appendix=[];k=1
- for el in (HANGER,MAIN_CABLE):
-  z=[(c[0],c[1].code,c[3],c[5].ta) for c in C if c[4] is el];appendix.append((f'Figure B.{k} - Température, 3 feux - {el.name}',envelope(t,z,f'Températures et enveloppes - {el.name}','Température (°C)',RESULTS_DIR/f'B{k}.png')));k+=1
-  z=[(c[0],c[1].code,c[3],ft_theta(el.ft_rd_20_kn,c[5].ta)) for c in C if c[4] is el];appendix.append((f'Figure B.{k} - Résistance, 3 feux - {el.name}',envelope(t,z,f'Résistances et enveloppes - {el.name}','Fₜ,Rd,θ (kN)',RESULTS_DIR/f'B{k}.png')));k+=1
- vals=[('Élément critique',e.name),('Fₜ,Rd,20',f'{e.ft_rd_20_kn:.0f} kN'),('A_m/V',f'{section_factor(e.diameter_m):.3f} m⁻¹'),('Distance 3D',f'{dist:.3f} m'),('θ_g',f'{h.tg[i]:.2f} °C'),('θ_a,i',f'{h.ta[i-1]:.2f} °C'),('c_a',f'{h.cp[i]:.1f} J/kgK')];case={'fire':fn,'position':p.label,'section':s.code,'L':L,'values':vals,'qc':h.qc[i],'qr':h.qr[i],'qn':h.qn[i],'dta':h.dta[i]}
- params=[('Trois feux','CN - ISO 834 ; extérieur ; HC'),('Styles','pointillé ; plein ; trait mixte'),('Durée','120 min'),('Pas','5 s'),('Φ','1,0'),('Fₜ,Rd,20 câble','11 897 kN'),('Fₜ,Rd,20 suspente','541 kN')]
- print(build(RESULTS_DIR/REPORT_FILENAME,ASSETS_DIR,SECTIONS,params,summary,rs,figs,rfigs,case,appendix,integ,ff,gf))
-if __name__=='__main__':run()
+POS=[{'code':'F1','deck':6.125,'hanger':6.945,'cable':8.120},{'code':'F2','deck':6.900,'hanger':7.720,'cable':9.400},{'code':'F3','deck':7.250,'hanger':8.070,'cable':11.070}]
+def main():
+ for d in (PNG,DATA,REPORTS):d.mkdir(parents=True,exist_ok=True)
+ ts=np.arange(0,TMAX*60+DT,DT);tm=ts/60;names=('ISO 834','Feu extérieur','HC');curves={f:gas(tm,f) for f in names};cases=[]
+ for fn,tg in curves.items():
+  for p in POS:
+   for L in LENGTHS:cases.append({'fire':fn,'pos':p['code'],'L':L,'tm':tm,'hanger':solve(ts,tg,.042,phi(L,p['hanger'])),'cable':solve(ts,tg,.132,phi(L,p['cable']))})
+ firep=PNG/'feux.png';geomp=PNG/'geometrie.png';fireplot(tm,curves,firep);geom(POS,geomp);f12=PNG/'fig12.png';f13=PNG/'fig13.png';family(cases,'hanger',20,f12,'Suspente secondaire - foyer 20 m');family(cases,'cable',20,f13,'Câble principal - foyer 20 m')
+ rows=[];maxlines=[]
+ for fn in names:
+  sel=[c for c in cases if c['fire']==fn]
+  for el,label,E,N,F in [('hanger','Suspente secondaire',E_HANGER,N_HANGER,FTRD_HANGER),('cable','Câble principal clos',E_CABLE,N_CABLE,FTRD_CABLE)]:
+   env=np.max(np.vstack([c[el] for c in sel]),axis=0);ratio=N/(ky(env)*F);ok=np.where(ratio<=1)[0];tmax=tm[ok[-1]] if len(ok) else 0;maxlines.append(f'{label} - {fn} : {tmax:.1f} min')
+   for t in TIMES:
+    i=np.argmin(abs(tm-t));T=env[i];rd=float(ky(T)*F);eta=N/rd if rd else np.inf;rows.append([fn,t,label,round(T,1),round(float(ky(T)),3),round(float(ke(T)*E),1),round(rd,1),round(eta,3),'Justifié' if eta<=1 else 'Non justifié'])
+ struct=pd.DataFrame(rows,columns=['Feu','t (min)','Organe','θ (°C)','ky,θ','Eθ (GPa)','Ft,Rd,θ (kN)','ηfi','Statut']);f14=PNG/'fig14.png';f15=PNG/'fig15.png';ratio_plot(struct,'Suspente secondaire',f14,'Ratio ηfi - Suspente secondaire');ratio_plot(struct,'Câble principal clos',f15,'Ratio ηfi - Câble principal clos')
+ temps=pd.DataFrame([[t,*[round(max(c[e][np.argmin(abs(tm-t))] for c in cases),1) for e in ('hanger','cable')]] for t in TIMES],columns=['Temps (min)','Suspente (°C)','Câble principal (°C)'])
+ annex=[]
+ for fn in names:
+  for el,lab in [('hanger','Suspente secondaire'),('cable','Câble principal clos')]:p=PNG/f'B_{fn}_{el}.png';envelope(cases,fn,el,p,f'{fn} - {lab}');annex.append((p,f'{fn} - {lab} : cas et enveloppe maximale.'))
+ ctx={'assets':[(ASSETS/'ZZ extrait vue en plan generale.png','Figure 1 - Vue en plan générale.',16),(ASSETS/'ZZ extrait plan suspension.png','Figure 2 - Système de suspension.',16),(ASSETS/'Zz extrait coupe long generale.png','Figure 3 - Coupe longitudinale.',16),(ASSETS/'ZZ coupe transv.png','Figure 4 - Coupe transversale.',16)],'cerema':ASSETS/'extrait_cerema_choix_courbes.png','fire':firep,'geom':geomp,'intrados':ASSETS/'ZZ_approxim intrados demi-coupe.png','f12':f12,'f13':f13,'f14':f14,'f15':f15,'annex':annex,'temps':temps,'struct':struct,'maxtext':'Temps maximal justifié, au pas de 5 s : '+' ; '.join(maxlines)+'.','geomtab':pd.DataFrame([[p['code'],p['deck'],p['hanger'],p['cable']] for p in POS],columns=['Coupe','Intrados','Suspente','Câble']),'params':pd.DataFrame([['Ft,Rd câble principal (cf. SAU_AVP_NDC_062_A_JustifOADéfi)','11 897 kN'],['NQP câble principal','3 300 kN'],['E câble principal','160 GPa'],['Ft,Rd suspente secondaire (cf. SAU_AVP_NDC_062_A_JustifOADéfi)','541 kN'],['NQP suspente secondaire','115 kN'],['E suspente secondaire','205 GPa']],columns=['Paramètre','Valeur'])}
+ print(build(ctx,REPORTS/REPORT))
+if __name__=='__main__':main()

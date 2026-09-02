@@ -1,31 +1,37 @@
-from pathlib import Path
+from datetime import datetime,timezone
+import os,time
 from docx import Document
+from docx.shared import Cm,Pt,RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Cm,Mm,Pt
-def img(d,p,c,w=16):d.add_picture(str(p),width=Cm(w));d.paragraphs[-1].alignment=WD_ALIGN_PARAGRAPH.CENTER;x=d.add_paragraph(c);x.alignment=WD_ALIGN_PARAGRAPH.CENTER;x.runs[0].italic=True
-def tbl(d,R):
- if not R:return
- H=list(R[0]);t=d.add_table(rows=1,cols=len(H));t.style='Table Grid'
- for i,h in enumerate(H):t.rows[0].cells[i].text=h;t.rows[0].cells[i].paragraphs[0].runs[0].bold=True
- for r in R:
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+def fig(d,p,c,w=15.5):d.add_picture(str(p),width=Cm(w));d.paragraphs[-1].alignment=WD_ALIGN_PARAGRAPH.CENTER;q=d.add_paragraph(c);q.style='Caption';q.alignment=WD_ALIGN_PARAGRAPH.CENTER
+def table(d,df,fs=7.5):
+ t=d.add_table(rows=1,cols=len(df.columns));t.style='Table Grid'
+ for i,x in enumerate(df.columns):t.rows[0].cells[i].text=str(x)
+ for _,r in df.iterrows():
   c=t.add_row().cells
-  for i,h in enumerate(H):c[i].text=str(r[h])
-def f(v,n=2):return f'{v:.{n}f}'.replace('.',',')
-def build(path,A,S,params,summary,rs,figs,rfigs,case,appendix,integ,ff,gf):
- d=Document();sec=d.sections[0];sec.top_margin=sec.bottom_margin=Mm(18);sec.left_margin=sec.right_margin=Mm(20);d.styles['Normal'].font.name='Aptos';d.styles['Normal'].font.size=Pt(10.5)
- p=d.add_paragraph();p.alignment=WD_ALIGN_PARAGRAPH.CENTER;x=p.add_run("ANALYSE THERMIQUE DE TROIS FEUX\nSOUS LA PASSERELLE");x.bold=True;x.font.size=Pt(23);p=d.add_paragraph('Passerelle Gerland - La Saulaie\nVersion V2.0 autonome');p.alignment=WD_ALIGN_PARAGRAPH.CENTER;d.add_page_break()
- d.add_heading('1. Objet',1);d.add_paragraph("La note compare les montées en température et les températures atteintes dans les suspentes secondaires et la suspension principale sous l'effet de trois feux nominaux : CN - ISO 834, feu extérieur et feu d'hydrocarbure HC. Les historiques obtenus préparent l'analyse structurelle et l'analyse des dommages, à poursuivre en échanges avec le maître d'ouvrage et son AMO.");img(d,A/'ZZ extrait vue en plan generale.png','Figure 1 - Vue en plan générale.');img(d,A/'ZZ extrait plan suspension.png','Figure 2 - Système de suspension.');img(d,A/'Zz extrait coupe long generale.png','Figure 3 - Coupe longitudinale générale.');img(d,A/'ZZ coupe transv.png','Figure 4 - Coupe transversale type.')
- d.add_heading('2. Références',1)
- for x in ['NF EN 1991-1-2, § 3.1 et § 3.2.1 à § 3.2.3.','NF EN 1993-1-2, § 3.4.1 et § 4.2.5.1.','NF EN 1993-1-11, éléments tendus.',"Cerema, Résistance à l'incendie des ponts routiers, 2018."]:d.add_paragraph(x,style='List Bullet')
- d.add_heading('3. Trois scénarios de feu',1);d.add_paragraph("Feu 1 : CN - ISO 834, pointillé. Feu 2 : feu extérieur, trait plein. Feu 3 : hydrocarbure HC non majoré, trait mixte. La courbe HC est ajoutée pour représenter un scénario d'hydrocarbures à montée rapide. La courbe HCM n'est pas étudiée.");img(d,A/'extrait_cerema_choix_courbes.png','Figure 5 - Extrait Cerema sur le choix des courbes.');img(d,A/'image.png','Figure 6 - Extrait Cerema : formulation de la courbe HC.');img(d,ff,'Figure 7 - Comparaison des trois courbes nominales.')
- d.add_heading('4. Géométrie',1);tbl(d,[{'Coupe':s.code,'Position':s.label,'Intrados (m)':f(s.intrados_m,3),'Naissance suspente (m)':f(s.intrados_m+.82,3),'Axe câble (m)':f(s.cable_m,3)} for s in S]);img(d,A/'ZZ_coupe longit partielle zone M7.png','Figure 8 - Hauteurs.');img(d,A/'ZZ_vue en plan cotée zone M7.png','Figure 9 - Largeurs de la M7.');img(d,A/'ZZ_demie coupe tablier et approx intrados.png',"Figure 10 - Approximation de l'intrados.");d.add_paragraph('F1 : ouest ; F2 : centre ; F3 : est.');img(d,gf,'Figure 11 - Trois coupes géométriques.')
- d.add_heading('5. Paramètres',1);tbl(d,[{'Paramètre':k,'Valeur':v} for k,v in params])
- d.add_heading('6. Résultats thermiques',1);d.add_paragraph('Convention : feud 1 pointillé, feu 2 plein, feu 3 trait mixte ; couleurs F1/F2/F3.');tbl(d,summary)
- for c,p in figs:img(d,p,c)
- d.add_heading('7. Pré-analyse de résistance',1);d.add_paragraph("Les résistances indicatives à chaud sont calculées pour les trois feux à partir de F_t,Rd,20 = 11 897 kN et 541 kN. La loi k_y,θ reste un proxy à confirmer pour les produits réels.");tbl(d,rs)
- for c,p in rfigs:img(d,p,c)
- d.add_heading('8. Poursuite de l’analyse',1);d.add_paragraph("Les températures issues des trois feux seront confrontées aux efforts axiaux et aux critères de dommage. Les échanges avec le MOA et son AMO devront préciser les situations de calcul, niveaux de dommage admissibles, réparabilité, scénarios de perte de suspentes et éventuelles protections.")
- d.add_page_break();d.add_heading('Annexe A - Cas critique à 30 min',1);d.add_paragraph(f"Le cas critique parmi les trois feux est : {case['fire']}, {case['position']}, coupe {case['section']}, foyer {f(case['L'],1)} m.");tbl(d,[{'Grandeur':k,'Valeur':v} for k,v in case['values']]);d.add_heading('A.1 Processus d’intégration',2);tbl(d,[{'Étape':'1','Calcul':'θ_a,i'},{'Étape':'2','Calcul':'c_a(θ_a,i)'},{'Étape':'3','Calcul':'q_conv,i, q_rad,i, q_net,i'},{'Étape':'4','Calcul':'Δθ_a,i'},{'Étape':'5','Calcul':'θ_a,i+1'}]);img(d,integ,'Figure A.1 - Cas critique : gaz, suspente secondaire et suspension principale.');d.add_heading('A.2 Dernier pas',2);tbl(d,[{'Grandeur':'q_conv','Valeur':f(case['qc'],1)+' W/m²'},{'Grandeur':'q_rad','Valeur':f(case['qr'],1)+' W/m²'},{'Grandeur':'q_net','Valeur':f(case['qn'],1)+' W/m²'},{'Grandeur':'Δθ_a','Valeur':f(case['dta'],4)+' °C'}])
- d.add_page_break();d.add_heading('Annexe B - Tous les cas et enveloppes des trois feux',1);d.add_paragraph("Chaque graphique regroupe 27 séries par élément : 3 feux × 3 positions × 3 longueurs, ainsi que le faisceau min-max et les enveloppes.")
- for c,p in appendix:img(d,p,c)
- path=Path(path);d.save(path);return path
+  for i,x in enumerate(r):c[i].text=str(x)
+ for row in t.rows:
+  for c in row.cells:
+   for p in c.paragraphs:
+    for r in p.runs:r.font.size=Pt(fs)
+def toc(p):
+ r=p.add_run();b=OxmlElement('w:fldChar');b.set(qn('w:fldCharType'),'begin');i=OxmlElement('w:instrText');i.set(qn('xml:space'),'preserve');i.text=' TOC \\o "1-3" \\h \\z ';s=OxmlElement('w:fldChar');s.set(qn('w:fldCharType'),'separate');t=OxmlElement('w:t');t.text='Mettre à jour le sommaire : Ctrl+A, F9.';e=OxmlElement('w:fldChar');e.set(qn('w:fldCharType'),'end');[r._r.append(x) for x in (b,i,s,t,e)]
+def build(c,out):
+ d=Document();d.styles['Normal'].font.name='Arial';d.styles['Normal'].font.size=Pt(9.5)
+ for n in ('Title','Heading 1','Heading 2'):d.styles[n].font.color.rgb=RGBColor(31,78,120)
+ p=d.add_paragraph();p.alignment=WD_ALIGN_PARAGRAPH.CENTER;r=p.add_run('ANALYSE THERMIQUE D’UN INCENDIE SOUS LA PASSERELLE');r.bold=True;r.font.size=Pt(18);p=d.add_paragraph('Passerelle Gerland - La Saulaie');p.alignment=WD_ALIGN_PARAGRAPH.CENTER;p=d.add_paragraph('Rapport du '+datetime.now().strftime('%d/%m/%Y'));p.alignment=WD_ALIGN_PARAGRAPH.CENTER;d.add_page_break();d.add_heading('Sommaire',1);toc(d.add_paragraph());d.add_page_break()
+ d.add_heading('1. Objet et présentation du projet',1);d.add_paragraph('L’étude évalue sous Python l’évolution temporelle des températures des suspentes secondaires et du câble principal lors d’un incendie sur la M7.')
+ for p,cap,w in c['assets']:fig(d,p,cap,w)
+ d.add_heading('2. Références',1);d.add_paragraph('NF EN 1991-1-2 ; NF EN 1993-1-2 ; guide Cerema Résistance à l’incendie des ponts routiers ; note SAU_AVP_NTE_069_A_FeuM7.')
+ d.add_heading('3. Choix des courbes de feu',1);d.add_paragraph('Les courbes ISO 834, feu extérieur et HC sont étudiées séparément puis comparées. La courbe HC est ajoutée du fait de la proximité signalée d’une station Esso, située à environ 2 km de l’ouvrage. Ce choix prudent pourra être rediscuté avec la MOA et son AMO. Le guide Cerema rappelle que le maître d’ouvrage doit définir le scénario de feu contre lequel il souhaite protéger l’ouvrage.');fig(d,c['cerema'],'Figure 5 - Extrait du guide Cerema : choix des courbes.',15);fig(d,c['fire'],'Figure 6 - Courbes nominales température-temps.',15)
+ d.add_heading('4. Géométrie simplifiée et positions de feu',1);table(d,c['geomtab']);fig(d,c['geom'],'Figure 7 - Trois coupes géométriques de référence et positions F1, F2 et F3.',15);fig(d,c['intrados'],'Figure 8 - Approximation de l’intrados par deux segments de droite.',14)
+ d.add_heading('5. Choix des paramètres et hypothèses',1);table(d,c['params'])
+ d.add_heading('6. Méthode de calcul',1);d.add_paragraph('Pour chaque courbe, position et longueur de foyer, Python calcule la température des gaz, le facteur de forme, la chaleur spécifique, les flux et l’incrément de température par pas de 5 s.')
+ d.add_heading('7. Résultats thermiques',1);table(d,c['temps']);fig(d,c['f12'],'Figure 12 - Température de la suspente secondaire - foyer 20 m.');fig(d,c['f13'],'Figure 13 - Température du câble principal clos - foyer 20 m.')
+ d.add_heading('8. Impact structurel',1);d.add_paragraph('Les résistances à chaud sont estimées par Ft,Rd,θ = ky,θ × Ft,Rd et les ratios par ηfi = NQP / Ft,Rd,θ. Les valeurs de Ft,Rd proviennent de la note SAU_AVP_NDC_062_A_JustifOADéfi.');table(d,c['struct'],6.8);d.add_paragraph(c['maxtext']);fig(d,c['f14'],'Figure 14 - Ratio de vérification de la suspente secondaire.');fig(d,c['f15'],'Figure 15 - Ratio de vérification du câble principal clos.')
+ d.add_heading('9. Portée et limites',1);d.add_paragraph('L’approche est enveloppe et ne crédite pas complètement les masquages. Pour les suspentes, le bec de tablier peut créer un masque partiel, mais un rayonnement latéral demeure possible.')
+ d.add_page_break();d.add_heading('Annexe B - Courbes de tous les cas étudiés',1)
+ for p,cap in c['annex']:fig(d,p,cap,15)
+ now=datetime.now(timezone.utc);d.core_properties.created=now;d.core_properties.modified=now;d.core_properties.last_modified_by='AIA Ingénierie';u=OxmlElement('w:updateFields');u.set(qn('w:val'),'true');d.settings._element.append(u);out.parent.mkdir(parents=True,exist_ok=True);d.save(out);os.utime(out,(time.time(),time.time()));return out
