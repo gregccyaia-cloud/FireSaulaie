@@ -12,3 +12,7 @@ def solve(ts,tg,D,P):
  for i in range(1,len(ts)):
   cv[i]=cp(T[i-1]);qc[i]=ALPHA*(tg[i-1]-T[i-1]);qr[i]=P*EPSM*EPSF*SIGMA*((tg[i-1]+273.15)**4-(T[i-1]+273.15)**4);di[i]=KSH*A*(qc[i]+qr[i])*(ts[i]-ts[i-1])/(RHO*cv[i]);T[i]=min(T[i-1]+di[i],tg[i])
  return T,qc,qr,cv,di
+# Facteur de réduction du module d'Young par interpolation des valeurs tabulées EC3
+TEMP=np.array([20,100,200,300,400,500,600,700,800,900,1000,1100,1200.],float)
+KE=np.array([1,1,.9,.8,.7,.6,.31,.13,.09,.0675,.045,.0225,0.],float)
+def kE(theta):return float(np.interp(float(theta),TEMP,KE))
