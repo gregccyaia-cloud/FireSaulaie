@@ -1,4 +1,10 @@
-# Analyse incendie V2.2 autonome
+# Analyse incendie V2.3 autonome
 
-Exécution : `python -m pip install -r requirements.txt` puis `python main.py`.
-Le rapport Word et les figures sont recréés dans `results/`. Le sommaire est un champ Word : au besoin, `Ctrl+A`, puis `F9`.
+Exécution :
+
+```bash
+python -m pip install -r requirements.txt
+python main.py
+```
+
+Le rapport est généré dans `results/reports/`. Le sommaire est un champ Word : si nécessaire, `Ctrl+A`, puis `F9`.

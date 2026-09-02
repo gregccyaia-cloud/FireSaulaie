@@ -12,9 +12,7 @@ def cp(t):
  if t<735:return 666+13002/(738-t)
  if t<900:return 545+17820/(t-731)
  return 650.
-def phi(H,h):
- # Sensibilité géométrique enveloppe liée à la hauteur de flamme H et à la hauteur du récepteur h.
- return float(np.clip(2/np.pi*np.arctan(H/(2*max(h-4,.25))),0,1))
+def phi(H,h):return float(np.clip(2/np.pi*np.arctan(H/(2*max(h-4,.25))),0,1))
 def solve(ts,tg,D,P):
  T=np.full(len(ts),T0);A=4/D
  for i in range(1,len(ts)):
