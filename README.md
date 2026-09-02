@@ -1,6 +1,8 @@
-# V1.5_H autonome
+# V1.5_I autonome
 
-La version H reprend la V1.5_G et restaure explicitement l'Annexe A complète : données du cas critique, tableau du processus d'intégration, graphique jusqu'à 30 min et détail du dernier pas.
+- Feu 1 en pointillés ; feu 2 en trait plein dans les § 6 et 7.
+- Annexe A consolidée avec suspente secondaire et suspension principale.
+- Annexe B avec toutes les séries, faisceau min-max et enveloppes.
 
 ```bash
 python -m pip install -r requirements.txt
