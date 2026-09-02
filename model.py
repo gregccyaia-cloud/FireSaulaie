@@ -1,13 +1,11 @@
 import numpy as np
 from config import *
-def gas(t,kind):
+def gas(t,k):
  t=np.asarray(t,float)
- if kind=='ISO 834':return 20+345*np.log10(8*t+1)
- if kind=='Feu extérieur':return 660*(1-.687*np.exp(-.32*t)-.313*np.exp(-3.8*t))+20
- if kind=='HC':return 20+1080*(1-.325*np.exp(-.167*t)-.675*np.exp(-2.5*t))
- raise ValueError(kind)
+ if k=='ISO 834':return 20+345*np.log10(8*t+1)
+ if k=='Feu extérieur':return 660*(1-.687*np.exp(-.32*t)-.313*np.exp(-3.8*t))+20
+ return 20+1080*(1-.325*np.exp(-.167*t)-.675*np.exp(-2.5*t))
 def cp(t):
- t=float(t)
  if t<600:return 425+.773*t-.00169*t*t+2.22e-6*t**3
  if t<735:return 666+13002/(738-t)
  if t<900:return 545+17820/(t-731)
